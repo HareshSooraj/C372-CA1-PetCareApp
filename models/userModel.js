@@ -18,7 +18,14 @@ const userModel = {
   findById: (userId, callback) => {
   const sql = 'SELECT id, name, username, role FROM users WHERE id = ?';
   connection.query(sql, [userId], callback);
+},
+
+
+deleteById: (userId, callback) => {
+    const sql = 'DELETE FROM users WHERE id = ?';
+    connection.query(sql, [userId], callback);
 }
+
 };
 
 module.exports = userModel;

@@ -139,16 +139,8 @@ app.get('/admin/dashboard', isAdmin, (req, res) => {
 // =========================
 
 // View All Users 
-app.get('/admin/users', isAdmin, (req, res) => {
-  userModel.getAllUsers((err, results) => {
-    if (err) return res.send('Error loading users');
+app.get('/admin/users', isAdmin, adminController.getAllUsers);
 
-    res.render('adminUsers', {
-      users: results,
-      session: req.session
-    });
-  });
-});
 
 // app.get('/admin/users', isAdmin, (req, res) => {
 //   const sql = `
@@ -172,18 +164,10 @@ app.get('/admin/users/:id', isAdmin, adminController.getUserDetails);
 
 
 //delete users
-app.get('/admin/users/delete/:id', isAdmin, (req, res) => {
-  const userId = req.params.id;
-  const sql = 'DELETE FROM users WHERE id = ?';
-    console.log(userId);
-  connection.query(sql, [userId], (err) => {
-    if (err) {
-      console.error('Error deleting user:', err);
-      return res.send('Error deleting user');
-    }
-    res.redirect('/admin/users');
-  });
-});
+
+
+app.post('/admin/users/delete/:id', isAdmin, adminController.deleteUser);
+
 
 
 // =========================
