@@ -1,27 +1,16 @@
 require('dotenv').config();                       
 // Pet Care Journal System
 const express = require('express');
-const mysql = require('mysql2');
-const multer = require('multer');
 const session = require('express-session');
 const flash = require('connect-flash');
-const crypto = require('crypto');
 const app = express();
 const PORT = 3000;
 
 
 
-// Set up multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'public/images'); // Directory to save uploaded files
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '_' + file.originalname); 
-    }
-});
+// Image upload configuration
+const upload = require('./config/upload');
 
-const upload = multer({ storage: storage });
 
 // View Engine and Middleware
 app.set('view engine', 'ejs');
@@ -37,28 +26,14 @@ app.use(session({
 app.use(flash());
 
 // MySQL Connection
-const connection = mysql.createConnection({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
-});
+const connection = require('./config/db');
 
-function sha256Hash(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
+const sha256Hash = require('./helpers/hash');
+const userModel = require('./models/userModel');
+const petModel = require('./models/petModel');
 
 // Auth Middleware
-function isLoggedIn(req, res, next) {
-  if (req.session.user) return next();
-  res.redirect('/login');
-}
-
-function isAdmin(req, res, next) {
-  if (req.session.user && req.session.user.role === 'admin') return next();
-  res.send('Access Denied!');
-}
+const { isLoggedIn, isAdmin } = require('./middleware/auth');
 
 // =========================
 // Authentication Routes
@@ -81,8 +56,7 @@ app.post('/signup', upload.single('pet_image'), (req, res) => {
     }
 
   const hashedPassword = sha256Hash(password);
-  const sqlUser = 'INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)';
-  connection.query(sqlUser, [username, hashedPassword, name, role], (err, result) => {
+  userModel.createUser(username, hashedPassword, name, role, (err, result) => {
     if (err) {
       console.error('Error creating user:', err);
       req.flash('error', 'Sign up failed. Please try again.');
@@ -92,8 +66,7 @@ app.post('/signup', upload.single('pet_image'), (req, res) => {
     const userId = result.insertId;
     console.log(userId);
     console.log(petImage);
-    const sqlPet = 'INSERT INTO pets (owner_id, name, species, breed, age, image ) VALUES (?, ?, ?, ?, ?, ?)';
-    connection.query(sqlPet, [userId, pet_name, species, breed, age, petImage], (err2) => {
+    petModel.createPet(userId, pet_name, species, breed, age, petImage, (err2) => {
       if (err2) {
         console.error('Error creating pet:', err2);
         req.flash('error', 'Sign up failed while saving pet. Please try again.');
@@ -116,8 +89,7 @@ app.get('/login', (req, res) => {
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   const hashedPassword = sha256Hash(password);
-  const sql = 'SELECT * FROM users WHERE username = ? AND password = ?';
-  connection.query(sql, [username, hashedPassword], (err, results) => {
+  userModel.findByCredentials(username, hashedPassword, (err, results) => {
     if (err) {
       console.error('Login query error:', err);
       req.flash('error', 'Unable to log in. Please check database setup.');
