@@ -136,8 +136,7 @@ app.get('/admin/dashboard', isAdmin, (req, res) => {
 
 // View All Users 
 app.get('/admin/users', isAdmin, (req, res) => {
-  const sql = 'SELECT id, name, username, role FROM users';
-  connection.query(sql, (err, results) => {
+  userModel.getAllUsers((err, results) => {
     if (err) return res.send('Error loading users');
 
     res.render('adminUsers', {
@@ -162,37 +161,36 @@ app.get('/admin/users', isAdmin, (req, res) => {
 // });
 
 //View user's profile
+
 app.get('/admin/users/:id', isAdmin, (req, res) => {
-  const userId = req.params.id;
+    const userId = req.params.id;
 
-  const userSql = 'SELECT id, name, username, role FROM users WHERE id = ?';
-  const petSql = 'SELECT * FROM pets WHERE owner_id = ?';
-  const journalSql = `
-    SELECT journal.*, pets.id AS pet_id
-    FROM journal
-    JOIN pets ON journal.pet_id = pets.id
-    WHERE pets.owner_id = ?
-  `;
+    userModel.findById(userId, (err, userResults) => {
+        if (err || userResults.length === 0) {
+            return res.send('User not found');
+        }
 
-  connection.query(userSql, [userId], (err, userResults) => {
-    if (err || userResults.length === 0) return res.send('User not found');
+        petModel.getPetsByOwnerId(userId, (err2, petResults) => {
+            if (err2) {
+                return res.send('Error retrieving pet info');
+            }
 
-    connection.query(petSql, [userId], (err2, petResults) => {
-      if (err2) return res.send('Error retrieving pet info');
+            journalModel.getJournalsByOwnerId(userId, (err3, journalResults) => {
+                if (err3) {
+                    return res.send('Error retrieving journal entries');
+                }
 
-      connection.query(journalSql, [userId], (err3, journalResults) => {
-        if (err3) return res.send('Error retrieving journal entries');
-
-        res.render('adminUserDetails', {
-          user: userResults[0],
-          pets: petResults,
-          journals: journalResults,
-          session: req.session
+                res.render('adminUserDetails', {
+                    user: userResults[0],
+                    pets: petResults,
+                    journals: journalResults,
+                    session: req.session
+                });
+            });
         });
-      });
     });
-  });
 });
+
 
 //delete users
 app.get('/admin/users/delete/:id', isAdmin, (req, res) => {
