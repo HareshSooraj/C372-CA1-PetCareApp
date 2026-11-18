@@ -3,6 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');
+
+const journalModel = require('./models/journalModel');
+const adminController = require('./controllers/adminController');
+
 const app = express();
 const PORT = 3000;
 
@@ -162,34 +166,9 @@ app.get('/admin/users', isAdmin, (req, res) => {
 
 //View user's profile
 
-app.get('/admin/users/:id', isAdmin, (req, res) => {
-    const userId = req.params.id;
 
-    userModel.findById(userId, (err, userResults) => {
-        if (err || userResults.length === 0) {
-            return res.send('User not found');
-        }
+app.get('/admin/users/:id', isAdmin, adminController.getUserDetails);
 
-        petModel.getPetsByOwnerId(userId, (err2, petResults) => {
-            if (err2) {
-                return res.send('Error retrieving pet info');
-            }
-
-            journalModel.getJournalsByOwnerId(userId, (err3, journalResults) => {
-                if (err3) {
-                    return res.send('Error retrieving journal entries');
-                }
-
-                res.render('adminUserDetails', {
-                    user: userResults[0],
-                    pets: petResults,
-                    journals: journalResults,
-                    session: req.session
-                });
-            });
-        });
-    });
-});
 
 
 //delete users
