@@ -5,6 +5,7 @@ const { isLoggedIn } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/journals', isLoggedIn, journalController.list);
+router.get('/journals/export', isLoggedIn, journalController.exportCsv);
 router.get('/journals/new', isLoggedIn, journalController.getNew);
 router.post('/journals/new', isLoggedIn, journalController.create);
 router.get('/journals/edit/:id', isLoggedIn, journalController.getEdit);

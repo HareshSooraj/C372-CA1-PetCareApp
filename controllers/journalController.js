@@ -7,6 +7,7 @@ function positiveInteger(value) {
 }
 
 function validDate(value) {
+  if (typeof value !== 'string') return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
 
   const [year, month, day] = value.split('-').map(Number);
@@ -14,6 +15,27 @@ function validDate(value) {
   return date.getUTCFullYear() === year
     && date.getUTCMonth() === month - 1
     && date.getUTCDate() === day;
+}
+
+function csvCell(value) {
+  if (value === null || value === undefined) return '';
+
+  let text = String(value);
+  if (/^[\s\x00-\x1F\x7F]*[=+\-@]/u.test(text) || /^[\x00-\x1F\x7F]/.test(text)) {
+    text = `'${text}`;
+  }
+
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function csvDate(value) {
+  if (!value) return '';
+  if (!(value instanceof Date)) return String(value);
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 const journalController = {
@@ -57,6 +79,40 @@ const journalController = {
           session: req.session
         });
       });
+    });
+  },
+
+  exportCsv: (req, res) => {
+    const userId = req.session.user.id;
+    const requestedPetId = req.query.petId;
+    const hasPetFilter = requestedPetId !== undefined && requestedPetId !== '';
+    const validPetFilter = !hasPetFilter
+      || (typeof requestedPetId === 'string' && /^[1-9]\d*$/.test(requestedPetId));
+    const selectedPetId = hasPetFilter ? Number(requestedPetId) : '';
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
+
+    if (!validPetFilter
+      || (startDate && !validDate(startDate))
+      || (endDate && !validDate(endDate))
+      || (startDate && endDate && startDate > endDate)) {
+      return res.status(400).send('Invalid journal export filters.');
+    }
+
+    journalModel.getJournalsForOwnedPet(userId, selectedPetId, startDate, endDate, (err, journals) => {
+      if (err) return res.status(500).send('Unable to export journals.');
+
+      const rows = [
+        ['Pet Name', 'Entry Date', 'Activity', 'Notes'],
+        ...journals.map((journal) => [journal.name, csvDate(journal.entry_date), journal.activity, journal.notes])
+      ];
+      const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
+
+      res.set({
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="pet-care-journal.csv"'
+      });
+      return res.send(csv);
     });
   },
 
