@@ -6,37 +6,54 @@ function positiveInteger(value) {
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
+function validDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
 const journalController = {
   list: (req, res) => {
     const userId = req.session.user.id;
     let selectedPetId = req.query.petId;
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
+    const invalidDateRange = (startDate && !validDate(startDate))
+      || (endDate && !validDate(endDate))
+      || (startDate && endDate && startDate > endDate);
 
     petModel.getPetsByOwnerId(userId, (err, pets) => {
       if (err) return res.send('Error loading pets');
 
-      if (!selectedPetId && pets.length > 0) {
-        selectedPetId = pets[0].id;
-      }
-
-      if (!selectedPetId) {
+      const petInfo = pets.find((pet) => pet.id == selectedPetId);
+      if (invalidDateRange) {
         return res.render('journals', {
           journals: [],
           pets,
-          selectedPetId: '',
-          pet: null,
+          selectedPetId,
+          pet: petInfo,
+          startDate,
+          endDate,
+          errors: ['Provide valid start and end dates.'],
           session: req.session
         });
       }
 
-      journalModel.getJournalsForOwnedPet(userId, selectedPetId, (err2, journals) => {
+      journalModel.getJournalsForOwnedPet(userId, selectedPetId, startDate, endDate, (err2, journals) => {
         if (err2) return res.send('Error loading journals');
 
-        const petInfo = pets.find((pet) => pet.id == selectedPetId);
         return res.render('journals', {
           journals,
           pets,
           selectedPetId,
           pet: petInfo,
+          startDate,
+          endDate,
+          errors: [],
           session: req.session
         });
       });
@@ -129,6 +146,9 @@ const journalController = {
           pets,
           selectedPetId,
           pet,
+          startDate: '',
+          endDate: '',
+          errors: [],
           session: req.session
         });
       });

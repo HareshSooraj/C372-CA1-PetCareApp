@@ -12,6 +12,10 @@
   <div class="container mt-5">
     <h2 class="mb-4">Pet Care Journals</h2>
 
+    <% if (errors && errors.length > 0) { %>
+      <div class="alert alert-danger" role="alert"><%= errors[0] %></div>
+    <% } %>
+
     <form action="/journals/search" method="GET" class="mb-3 d-flex">
         <input type="text" name="q" class="form-control me-2" placeholder="Search activity or notes..." required>
         <% if (selectedPetId) { %>
@@ -27,13 +31,19 @@
 
     <% if (pets && pets.length > 0) { %>
         <form method="GET" action="/journals" class="mb-3">
+            <% if (startDate) { %>
+                <input type="hidden" name="startDate" value="<%= startDate %>">
+            <% } %>
+            <% if (endDate) { %>
+                <input type="hidden" name="endDate" value="<%= endDate %>">
+            <% } %>
             <div class="row g-2 align-items-center">
                 <div class="col-auto">
                 <label for="petId" class="col-form-label">Select Pet:</label>
                 </div>
                 <div class="col-auto">
                 <select name="petId" id="petId" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- All Pets --</option>
+                    <option value="" <%= !selectedPetId ? 'selected' : '' %>>-- All Pets --</option>
                     <% for (let i = 0; i < pets.length; i++) { %>
                     <% if (selectedPetId && selectedPetId == pets[i].id.toString()) { %>
                         <option value="<%= pets[i].id %>" selected><%= pets[i].name %></option>
@@ -42,6 +52,30 @@
                     <% } %>
                     <% } %>
                 </select>
+                </div>
+            </div>
+        </form>
+
+        <form method="GET" action="/journals" class="mb-3">
+            <% if (selectedPetId) { %>
+              <input type="hidden" name="petId" value="<%= selectedPetId %>">
+            <% } %>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate" name="startDate" value="<%= startDate || '' %>">
+                </div>
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDate" name="endDate" value="<%= endDate || '' %>">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">Filter Dates</button>
+                    <% let clearFiltersUrl = '/journals'; %>
+                    <% if (selectedPetId) { %>
+                    <% clearFiltersUrl += '?petId=' + selectedPetId; %>
+                    <% } %>
+                    <a href="<%= clearFiltersUrl %>" class="btn btn-outline-secondary">Clear Filters</a>
                 </div>
             </div>
         </form>

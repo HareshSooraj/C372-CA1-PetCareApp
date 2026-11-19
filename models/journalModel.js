@@ -12,14 +12,31 @@ const journalModel = {
     db.query(sql, [userId], callback);
   },
 
-  getJournalsForOwnedPet: (userId, petId, callback) => {
-    const sql = `
+  getJournalsForOwnedPet: (userId, petId, startDate, endDate, callback) => {
+    let sql = `
       SELECT journal.*, pets.name, pets.species, pets.breed, pets.age, pets.image
       FROM journal
       JOIN pets ON journal.pet_id = pets.id
-      WHERE pets.owner_id = ? AND pets.id = ?
+      WHERE pets.owner_id = ?
     `;
-    db.query(sql, [userId, petId], callback);
+    const params = [userId];
+
+    if (petId) {
+      sql += ' AND pets.id = ?';
+      params.push(petId);
+    }
+
+    if (startDate) {
+      sql += ' AND journal.entry_date >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      sql += ' AND journal.entry_date <= ?';
+      params.push(endDate);
+    }
+
+    db.query(sql, params, callback);
   },
 
   createForOwnedPet: (userId, petId, activity, notes, entryDate, callback) => {
