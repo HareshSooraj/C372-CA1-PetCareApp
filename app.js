@@ -8,6 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const petRoutes = require('./routes/petRoutes');
 const journalRoutes = require('./routes/journalRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 const PORT = 3000;
@@ -17,6 +18,7 @@ const PORT = 3000;
 // View Engine and Middleware
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(express.static('public'));
 
 app.use(session({
@@ -31,6 +33,7 @@ app.use(authRoutes);
 app.use(adminRoutes);
 app.use(petRoutes);
 app.use(journalRoutes);
+app.use(paymentRoutes);
 
 // =========================
 // Start Server
