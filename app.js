@@ -302,26 +302,41 @@ app.get('/journals/new', isLoggedIn, (req, res) => {
 // Handle New Journal Submission
 app.post('/journals/new', isLoggedIn, (req, res) => {
   const { pet_id, activity, notes, entry_date } = req.body;
+  const userId = req.session.user.id;
+  const requestedPetId = Number(pet_id);
+  const selectedPetId = Number.isSafeInteger(requestedPetId) && requestedPetId > 0 ? requestedPetId : null;
 
-  const sql = 'INSERT INTO journal (pet_id, activity, notes, entry_date) VALUES (?, ?, ?, ?)';
-  connection.query(sql, [pet_id, activity, notes, entry_date], (err) => {
+  const sql = `
+    INSERT INTO journal (pet_id, activity, notes, entry_date)
+    SELECT pets.id, ?, ?, ?
+    FROM pets
+    WHERE pets.id = ? AND pets.owner_id = ?
+  `;
+  connection.query(sql, [activity, notes, entry_date, selectedPetId, userId], (err, result) => {
     if (err) return res.send('Error saving journal');
+    if (result.affectedRows === 0) return res.send('Error saving journal');
 
     // Redirect to journals page and keep selected pet
-    res.redirect(`/journals?petId=${pet_id}`);
+    res.redirect(`/journals?petId=${selectedPetId}`);
   });
 });
 
 
 // Edit Journal Form
 app.get('/journals/edit/:id', isLoggedIn, (req, res) => {
-  const journalId = req.params.id;
+  const requestedJournalId = Number(req.params.id);
+  const journalId = Number.isSafeInteger(requestedJournalId) && requestedJournalId > 0 ? requestedJournalId : null;
   const userId = req.session.user.id;
 
-  const sqlJournal = 'SELECT * FROM journal WHERE id = ?';
+  const sqlJournal = `
+    SELECT journal.*
+    FROM journal
+    JOIN pets ON journal.pet_id = pets.id
+    WHERE journal.id = ? AND pets.owner_id = ?
+  `;
   const sqlPets = 'SELECT * FROM pets WHERE owner_id = ?';
 
-  connection.query(sqlJournal, [journalId], (err, journalResults) => {
+  connection.query(sqlJournal, [journalId, userId], (err, journalResults) => {
     if (err || journalResults.length === 0) return res.send('Journal not found');
 
     connection.query(sqlPets, [userId], (err2, pets) => {
@@ -336,31 +351,58 @@ app.get('/journals/edit/:id', isLoggedIn, (req, res) => {
 // Handle Edit Submission
 app.post('/journals/edit/:id', isLoggedIn, (req, res) => {
   const { entry_date, activity, notes, pet_id } = req.body;
-  const journalId = req.params.id;
+  const requestedJournalId = Number(req.params.id);
+  const journalId = Number.isSafeInteger(requestedJournalId) && requestedJournalId > 0 ? requestedJournalId : null;
+  const userId = req.session.user.id;
+  const requestedPetId = Number(pet_id);
+  const selectedPetId = Number.isSafeInteger(requestedPetId) && requestedPetId > 0 ? requestedPetId : null;
 
-  const sql = 'UPDATE journal SET entry_date = ?, activity = ?, notes = ?, pet_id = ? WHERE id = ?';
-  connection.query(sql, [entry_date, activity, notes, pet_id, journalId], (err) => {
+  const sql = `
+    UPDATE journal
+    JOIN pets AS current_pet ON journal.pet_id = current_pet.id
+    JOIN pets AS selected_pet ON selected_pet.id = ?
+    SET journal.entry_date = ?, journal.activity = ?, journal.notes = ?, journal.pet_id = selected_pet.id
+    WHERE journal.id = ?
+      AND current_pet.owner_id = ?
+      AND selected_pet.owner_id = ?
+  `;
+  const params = [selectedPetId, entry_date, activity, notes, journalId, userId, userId];
+  connection.query(sql, params, (err, result) => {
     if (err) return res.send('Error updating journal');
-    res.redirect(`/journals?petId=${pet_id}`); // 🔁 Redirect back to selected pet
+    if (result.affectedRows === 0) return res.send('Journal not found');
+    res.redirect(`/journals?petId=${selectedPetId}`); // 🔁 Redirect back to selected pet
   });
 });
 
 
-// Delete Journal (Admin Only)
+// Delete Journal
 app.get('/journals/delete/:id', isLoggedIn, (req, res) => {
-  const journalId = req.params.id;
+  const requestedJournalId = Number(req.params.id);
+  const journalId = Number.isSafeInteger(requestedJournalId) && requestedJournalId > 0 ? requestedJournalId : null;
+  const userId = req.session.user.id;
 
   // First, find the pet_id for this journal
-  const findPetSql = 'SELECT pet_id FROM journal WHERE id = ?';
-  connection.query(findPetSql, [journalId], (err, result) => {
+  const findPetSql = `
+    SELECT journal.pet_id
+    FROM journal
+    JOIN pets ON journal.pet_id = pets.id
+    WHERE journal.id = ? AND pets.owner_id = ?
+  `;
+  connection.query(findPetSql, [journalId, userId], (err, result) => {
     if (err || result.length === 0) return res.send('Journal not found.');
 
     const petId = result[0].pet_id;
 
     // Now delete the journal
-    const deleteSql = 'DELETE FROM journal WHERE id = ?';
-    connection.query(deleteSql, [journalId], (err2) => {
+    const deleteSql = `
+      DELETE journal
+      FROM journal
+      JOIN pets ON journal.pet_id = pets.id
+      WHERE journal.id = ? AND pets.owner_id = ?
+    `;
+    connection.query(deleteSql, [journalId, userId], (err2, deleteResult) => {
       if (err2) return res.send('Error deleting journal.');
+      if (deleteResult.affectedRows === 0) return res.send('Journal not found.');
 
       // Redirect to journals page for the correct pet
       res.redirect(`/journals?petId=${petId}`);
