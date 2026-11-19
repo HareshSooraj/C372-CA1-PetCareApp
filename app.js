@@ -50,7 +50,7 @@ app.get('/signup', (req, res) => {
 
 // Handle Sign Up Submission
 app.post('/signup', upload.single('pet_image'), (req, res) => {
-  const { username, password, name, role, pet_name, species, breed, age } = req.body;
+  const { username, password, name, pet_name, species, breed, age } = req.body;
   //const petImage = req.file ? req.file.filename : '';
   let petImage;
     if (req.file) {
@@ -60,7 +60,7 @@ app.post('/signup', upload.single('pet_image'), (req, res) => {
     }
 
   const hashedPassword = sha256Hash(password);
-  userModel.createUser(username, hashedPassword, name, role, (err, result) => {
+  userModel.createUser(username, hashedPassword, name, 'user', (err, result) => {
     if (err) {
       console.error('Error creating user:', err);
       req.flash('error', 'Sign up failed. Please try again.');
