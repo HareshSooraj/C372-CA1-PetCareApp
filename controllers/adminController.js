@@ -4,6 +4,10 @@ const petModel = require('../models/petModel');
 const journalModel = require('../models/journalModel');
 
 const adminController = {
+    getDashboard: (req, res) => {
+        res.render('adminDashboard', { session: req.session });
+    },
+
     getUserDetails: (req, res) => {
         const userId = req.params.id;
 

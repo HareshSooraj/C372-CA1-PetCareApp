@@ -5,7 +5,7 @@ const session = require('express-session');
 const flash = require('connect-flash');
 
 const journalModel = require('./models/journalModel');
-const adminController = require('./controllers/adminController');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const PORT = 3000;
@@ -29,6 +29,8 @@ app.use(session({
 
 app.use(flash());
 
+app.use(adminRoutes);
+
 // MySQL Connection
 const connection = require('./config/db');
 
@@ -37,7 +39,7 @@ const userModel = require('./models/userModel');
 const petModel = require('./models/petModel');
 
 // Auth Middleware
-const { isLoggedIn, isAdmin } = require('./middleware/auth');
+const { isLoggedIn } = require('./middleware/auth');
 
 // =========================
 // Authentication Routes
@@ -125,50 +127,6 @@ app.get('/logout', (req, res) => {
 app.get('/', (req, res) => {
   res.render('index', { session: req.session });
 });
-
-// =========================
-// Dashboard (Admin)
-// =========================
-
-app.get('/admin/dashboard', isAdmin, (req, res) => {
-  res.render('adminDashboard', { session: req.session });
-});
-
-// =========================
-// View Users Route (Admin)
-// =========================
-
-// View All Users 
-app.get('/admin/users', isAdmin, adminController.getAllUsers);
-
-
-// app.get('/admin/users', isAdmin, (req, res) => {
-//   const sql = `
-//     SELECT users.id AS user_id, users.name AS user_name, users.username, users.role,
-//            pets.name AS pet_name, pets.species, pets.breed, pets.image
-//     FROM users
-//     LEFT JOIN pets ON users.id = pets.owner_id
-//     ORDER BY users.id
-//   `;
-//   connection.query(sql, (err, results) => {
-//     if (err) throw err;
-//     res.render('adminUsers', { usersWithPets: results, session: req.session });
-//   });
-// });
-
-//View user's profile
-
-
-app.get('/admin/users/:id', isAdmin, adminController.getUserDetails);
-
-
-
-//delete users
-
-
-app.post('/admin/users/delete/:id', isAdmin, adminController.deleteUser);
-
-
 
 // =========================
 // Pet Route
