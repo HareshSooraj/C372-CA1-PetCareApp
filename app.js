@@ -5,6 +5,7 @@ const session = require('express-session');
 const flash = require('connect-flash');
 
 const journalModel = require('./models/journalModel');
+const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
@@ -29,104 +30,16 @@ app.use(session({
 
 app.use(flash());
 
+app.use(authRoutes);
 app.use(adminRoutes);
 
 // MySQL Connection
 const connection = require('./config/db');
 
-const sha256Hash = require('./helpers/hash');
-const userModel = require('./models/userModel');
 const petModel = require('./models/petModel');
 
 // Auth Middleware
 const { isLoggedIn } = require('./middleware/auth');
-
-// =========================
-// Authentication Routes
-// =========================
-
-// Sign Up Page
-app.get('/signup', (req, res) => {
-  res.render('signup', { session: req.session });
-});
-
-// Handle Sign Up Submission
-app.post('/signup', upload.single('pet_image'), (req, res) => {
-  const { username, password, name, pet_name, species, breed, age } = req.body;
-  //const petImage = req.file ? req.file.filename : '';
-  let petImage;
-    if (req.file) {
-        petImage = req.file.filename; // Save only the filename
-    } else {
-        petImage = null;
-    }
-
-  const hashedPassword = sha256Hash(password);
-  userModel.createUser(username, hashedPassword, name, 'user', (err, result) => {
-    if (err) {
-      console.error('Error creating user:', err);
-      req.flash('error', 'Sign up failed. Please try again.');
-      return res.redirect('/signup');
-    }
-
-    const userId = result.insertId;
-    console.log(userId);
-    console.log(petImage);
-    petModel.createPet(userId, pet_name, species, breed, age, petImage, (err2) => {
-      if (err2) {
-        console.error('Error creating pet:', err2);
-        req.flash('error', 'Sign up failed while saving pet. Please try again.');
-        return res.redirect('/signup');
-      }
-
-      res.redirect('/login');
-    });
-  });
-});
-
-
-// Login Page
-app.get('/login', (req, res) => {
-  res.render('login', { messages: req.flash('success'), 
-        errors: req.flash('error'), session: req.session });
-});
-
-// Handle Login
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  const hashedPassword = sha256Hash(password);
-  userModel.findByCredentials(username, hashedPassword, (err, results) => {
-    if (err) {
-      console.error('Login query error:', err);
-      req.flash('error', 'Unable to log in. Please check database setup.');
-      return res.redirect('/login');
-    }
-
-    if (results.length > 0) {
-      req.session.user = results[0];
-      req.flash('success', 'Login successful!');
-      if (results[0].role === 'admin') {
-        res.redirect('/admin/dashboard');
-      } else {
-        res.redirect('/journals');
-      }
-    } else {
-      req.flash('error', 'Invalid username or password.');
-      return res.redirect('/login');
-    }
-  });
-});
-
-// Logout
-app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/login');
-});
-
-// Index Page
-app.get('/', (req, res) => {
-  res.render('index', { session: req.session });
-});
 
 // =========================
 // Pet Route
