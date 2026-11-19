@@ -7,14 +7,11 @@ const flash = require('connect-flash');
 const journalModel = require('./models/journalModel');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const petRoutes = require('./routes/petRoutes');
 
 const app = express();
 const PORT = 3000;
 
-
-
-// Image upload configuration
-const upload = require('./config/upload');
 
 
 // View Engine and Middleware
@@ -32,55 +29,13 @@ app.use(flash());
 
 app.use(authRoutes);
 app.use(adminRoutes);
+app.use(petRoutes);
 
 // MySQL Connection
 const connection = require('./config/db');
 
-const petModel = require('./models/petModel');
-
 // Auth Middleware
 const { isLoggedIn } = require('./middleware/auth');
-
-// =========================
-// Pet Route
-// =========================
-
-// View Pet Profile
-// app.get('/pets/:id', isLoggedIn, (req, res) => {
-//   const sql = 'SELECT * FROM pets WHERE id = ?';
-//   connection.query(sql, [req.params.id], (err, results) => {
-//     if (err) throw err;
-//     res.render('petProfile', { pet: results[0] });
-//   });
-// });
-
-//add pet
-app.get('/pets/new', isLoggedIn, (req, res) => {
-  res.render('newPet', {session: req.session});
-});
-
-app.post('/pets', upload.single('pet_image'), isLoggedIn, (req, res) => {
-  const { pet_name, species, breed, age } = req.body;
-  let petImage;
-
-  if (req.file) {
-    petImage = req.file.filename; // use uploaded filename
-  } else {
-    petImage = null;
-  }
-
-  const ownerId = req.session.user.id;
-
-  const sql = 'INSERT INTO pets (owner_id, name, species, breed, age, image) VALUES (?, ?, ?, ?, ?, ?)';
-  connection.query(sql, [ownerId, pet_name, species, breed, age, petImage], (err) => {
-    if (err) {
-      console.error(err);
-      return res.send('Failed to add pet.');
-    }
-    res.redirect('/journals');
-  });
-});
-
 
 // =========================
 // Journal Routes
